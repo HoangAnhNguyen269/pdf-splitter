@@ -1,247 +1,233 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>PDF Splitter Pro</title>
+
   <style>
     :root{
       --bg1:#fff7fb;
       --bg2:#f2fbff;
-      --card: rgba(255,255,255,.72);
-      --line: rgba(20,40,80,.12);
+      --card:rgba(255,255,255,.78);
+      --line:rgba(20,40,80,.12);
       --text:#1c2a44;
       --muted:#66789a;
       --accent:#7c5cff;
       --good:#22c55e;
       --danger:#ff4d6d;
-      --shadow: 0 18px 45px rgba(40,60,120,.12);
       --r:16px;
     }
     *{box-sizing:border-box}
     body{
-      margin:0; padding:22px; color:var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      margin:0;padding:16px;color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
       background:
-        radial-gradient(1200px 650px at 18% 8%, rgba(124,92,255,.18), transparent 55%),
-        radial-gradient(900px 520px at 92% 14%, rgba(34,197,94,.15), transparent 60%),
-        linear-gradient(180deg, var(--bg1), var(--bg2));
+              radial-gradient(1200px 650px at 18% 8%, rgba(124,92,255,.18), transparent 55%),
+              radial-gradient(900px 520px at 92% 14%, rgba(34,197,94,.15), transparent 60%),
+              linear-gradient(180deg, var(--bg1), var(--bg2));
       min-height:100vh;
     }
-    .wrap{max-width:1100px; margin:0 auto}
-    .top{display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-    h1{margin:0; font-size:20px}
-    .muted{color:var(--muted); font-size:13px}
+    .wrap{max-width:1100px;margin:auto}
     .card{
       background:var(--card);
       border:1px solid var(--line);
       border-radius:var(--r);
-      box-shadow:var(--shadow);
       padding:14px;
-      backdrop-filter: blur(10px);
+      margin-top:14px;
+      backdrop-filter:blur(8px);
     }
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
     .spacer{flex:1}
-
-    input[type=file]{
-      background:rgba(255,255,255,.75);
-      border:1px dashed var(--line);
-      color:var(--text);
-      padding:10px;
-      border-radius:14px;
-      min-width:280px;
-    }
-    input[type="number"], input[type="text"]{
-      background:rgba(255,255,255,.92);
-      border:1px solid var(--line);
-      color:var(--text);
-      padding:10px;
-      border-radius:14px;
-      outline:none;
-    }
+    .muted{color:var(--muted);font-size:13px}
 
     button{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.75);
-      color:var(--text);
-      padding:10px 12px;
+      padding:10px 14px;
       border-radius:14px;
+      border:1px solid var(--line);
+      background:white;
       cursor:pointer;
-      transition:.12s transform ease, .12s background ease;
+      transition:.12s transform ease,.12s background ease;
+    }
+    button:hover{transform:translateY(-1px)}
+    button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    .btn-accent{background:rgba(124,92,255,.14)}
+    .btn-good{background:rgba(34,197,94,.14)}
+    .btn-bad{background:rgba(255,77,109,.14)}
+
+    input[type=file],input[type=text],input[type=number]{
+      padding:10px;border-radius:14px;border:1px solid var(--line);
+      background:rgba(255,255,255,.92);
+    }
+    input[type=file]{background:rgba(255,255,255,.75)}
+
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      cursor:pointer;
+      background:rgba(255,255,255,.75);
       user-select:none;
     }
-    button:hover{transform: translateY(-1px); background:rgba(255,255,255,.92)}
-    button:disabled{opacity:.55; cursor:not-allowed; transform:none}
-    .btn-accent{border-color:rgba(124,92,255,.35); background:rgba(124,92,255,.12)}
-    .btn-good{border-color:rgba(34,197,94,.30); background:rgba(34,197,94,.10)}
-    .btn-bad{border-color:rgba(255,77,109,.30); background:rgba(255,77,109,.10)}
-
-    .pill{
-      padding:6px 10px; border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.70);
-      font-size:12px; color:var(--muted);
-    }
-
-    .tabs{display:flex; gap:8px; flex-wrap:wrap}
-    .tab{
-      padding:8px 10px; border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.70);
-      color:var(--muted);
-      cursor:pointer; user-select:none;
-    }
     .tab.active{
-      color:var(--text);
-      border-color:rgba(124,92,255,.35);
-      background:rgba(124,92,255,.12);
+      background:rgba(124,92,255,.18);
+      border-color:rgba(124,92,255,.25);
     }
 
     .grid{
       display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap:10px;
-      margin-top:12px;
+      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:10px;margin-top:12px
     }
     .pageCard{
       border:1px solid var(--line);
-      background:rgba(255,255,255,.70);
       border-radius:14px;
       overflow:hidden;
+      background:white;
+      cursor:pointer;
     }
     .thumb{
       height:150px;
       display:flex;
       align-items:center;
       justify-content:center;
-      background:rgba(124,92,255,.06);
-      border-bottom:1px solid var(--line);
+      background:#f8f8ff;
     }
-    .thumb canvas{max-width:100%; max-height:100%}
     .pageMeta{
       padding:8px 10px;
       display:flex;
       justify-content:space-between;
       align-items:center;
-      gap:10px;
+      gap:8px;
     }
-    .pageMeta label{display:flex; gap:8px; align-items:center; cursor:pointer}
-    .pageMeta small{color:var(--muted)}
     .checkbox{transform:scale(1.05)}
 
-    .splitBoxes{display:flex; flex-direction:column; gap:10px; margin-top:12px}
     .box{
       border:1px solid var(--line);
-      background:rgba(255,255,255,.70);
+      background:white;
       border-radius:14px;
       padding:12px;
+      margin-top:10px;
     }
-    .boxHead{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .boxHead input{min-width:240px}
-    .boxBody{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .hint{font-size:12px; color:var(--muted)}
-    .status{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; color:var(--muted)}
-    .error{color:var(--danger); white-space:pre-wrap; margin-top:10px}
+    .boxHead{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .boxHead input{min-width:220px}
+    .boxBody{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 
-    .downloads a{
+    a.dl{
       display:inline-block;
-      margin:6px 10px 0 0;
+      margin:8px 10px 0 0;
       padding:10px 12px;
       border-radius:14px;
       border:1px solid var(--line);
-      background:rgba(255,255,255,.82);
-      text-decoration:none;
+      background:rgba(255,255,255,.92);
       color:var(--text);
+      text-decoration:none;
     }
 
-    .pager{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
-    .pager input{width:96px}
-
-    .brand{display:flex; gap:12px; align-items:center;}
-    .mascot{
-      width:42px; height:42px; border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.8);
-      box-shadow: 0 10px 25px rgba(40,60,120,.10);
-      overflow:hidden; display:flex; align-items:center; justify-content:center;
+    /* Responsive */
+    @media(max-width:720px){
+      body{padding:10px}
+      .tab{flex:1;text-align:center}
+      input[type=file]{width:100%}
+      .grid{grid-template-columns:repeat(2,1fr);gap:8px}
+      .thumb{height:120px}
+      .boxHead input{min-width:0;width:100%}
     }
-    .mascot img{width:100%; height:100%; object-fit:cover; display:none;}
-    .mascot svg{width:34px; height:34px; opacity:.9}
-    code{background:rgba(124,92,255,.10); border:1px solid rgba(124,92,255,.14); padding:2px 6px; border-radius:10px}
+
+    /* Viewer modal */
+    #viewerOverlay{
+      position:fixed;inset:0;
+      background:rgba(0,0,0,.55);
+      backdrop-filter:blur(8px);
+      display:none;
+      z-index:999;
+      padding:10px;
+    }
+    #viewerCard{
+      background:white;
+      height:100%;
+      max-width:980px;
+      margin:0 auto;
+      border-radius:16px;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    #viewerTop,#viewerBottom{
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background:#f3f3ff;
+      border-bottom:1px solid rgba(20,40,80,.10);
+    }
+    #viewerBottom{
+      border-top:1px solid rgba(20,40,80,.10);
+      border-bottom:none;
+      background:#f2fff6;
+    }
+    #viewerBody{
+      flex:1;
+      overflow:auto;
+      padding:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    #viewerCanvas{
+      width:100%;
+      height:auto;
+      max-height:calc(100vh - 140px);
+      border-radius:12px;
+      border:1px solid rgba(20,40,80,.12);
+      background:white;
+    }
   </style>
 </head>
 
 <body>
 <div class="wrap">
-  <div class="top">
-    <div class="brand">
-      <div class="mascot">
-        <!-- Nếu bạn tự có sticker: đặt assets/chiikawa.png rồi bật img + tắt svg -->
-        <!-- <img id="chiikawaImg" src="assets/chiikawa.png" alt="sticker"> -->
-        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <path d="M16 26c-5 2-8 7-8 13 0 14 12 20 24 20s24-6 24-20c0-6-3-11-8-13" fill="#ffe4f1" stroke="#1c2a44" stroke-opacity=".15"/>
-          <circle cx="20" cy="22" r="8" fill="#fff" stroke="#1c2a44" stroke-opacity=".15"/>
-          <circle cx="44" cy="22" r="8" fill="#fff" stroke="#1c2a44" stroke-opacity=".15"/>
-          <circle cx="26" cy="36" r="3" fill="#1c2a44"/>
-          <circle cx="38" cy="36" r="3" fill="#1c2a44"/>
-          <path d="M32 40c-2 0-4 2-4 3s2 3 4 3 4-2 4-3-2-3-4-3z" fill="#ff6b9a"/>
-          <path d="M24 46c3 3 13 3 16 0" stroke="#1c2a44" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-        </svg>
-      </div>
-      <div>
-        <h1>PDF Splitter Pro</h1>
-        <div class="muted">Upload PDF → Mode A chọn trang → hỏi tên file → tạo list; Mode B tạo box from/to (+) → tách (PDF/ZIP).</div>
-        <div class="muted">Muốn “Chiikawa”: bạn tự thêm sticker vào <code>assets/chiikawa.png</code> rồi bật thẻ img.</div>
-      </div>
-    </div>
 
+  <div class="row" style="gap:12px;">
+    <div>
+      <div style="font-weight:800;font-size:20px;">PDF Splitter Pro</div>
+      <div class="muted">Chạy 100% trên trình duyệt: upload PDF → chọn trang hoặc nhập khoảng → tách PDF/ZIP.</div>
+    </div>
+    <div class="spacer"></div>
     <div class="tabs">
-      <div id="tabPick" class="tab active">Mode A: Clickbox từng trang</div>
-      <div id="tabRange" class="tab">Mode B: Range boxes (+)</div>
+      <div id="tabPick" class="tab active">Chọn trang</div>
+      <div id="tabRange" class="tab">Tách theo khoảng</div>
     </div>
   </div>
 
-  <div class="card" style="margin-top:14px;">
+  <div class="card">
     <div class="row">
-      <input id="pdfFile" type="file" accept="application/pdf" />
+      <input id="pdfFile" type="file" accept="application/pdf"/>
       <button id="btnLoad" class="btn-accent" disabled>Đọc PDF</button>
-      <div id="info" class="pill">Chưa có file</div>
+      <div id="info" class="muted">Chưa có file</div>
       <div class="spacer"></div>
-      <label class="row muted">
-        <input id="makeZip" type="checkbox" class="checkbox" checked />
-        Tải ZIP
+      <label class="muted" style="display:flex;gap:8px;align-items:center;">
+        <input id="makeZip" type="checkbox" class="checkbox" checked/> Tải ZIP
       </label>
       <button id="btnSplit" class="btn-good" disabled>Tách ngay</button>
     </div>
-
-    <div id="status" class="status" style="margin-top:10px;"></div>
-    <div id="error" class="error"></div>
+    <div id="status" class="muted" style="margin-top:8px;"></div>
+    <div id="error" style="color:var(--danger);margin-top:8px;"></div>
   </div>
 
-  <!-- MODE A -->
-  <div id="modePick" class="card" style="margin-top:14px;">
+  <!-- Mode A -->
+  <div id="modePick" class="card">
     <div class="row">
-      <div class="pill" id="pickCounter">Selected: 0</div>
+      <div id="pickCounter" class="muted">Selected: 0</div>
       <div class="spacer"></div>
-
-      <div class="pager">
-        <span class="muted">Hiển thị:</span>
-        <button id="btnPrev">←</button>
-        <span id="pageWindow" class="pill">-</span>
-        <button id="btnNext">→</button>
-
-        <span class="muted">Mỗi lần</span>
-        <input id="pageSize" type="number" min="20" max="400" value="120" />
-        <span class="muted">trang</span>
-
-        <span class="muted">Jump</span>
-        <input id="jumpTo" type="number" min="1" placeholder="167" />
-        <button id="btnJump" class="btn-accent">Go</button>
-      </div>
+      <button id="btnPrev">←</button>
+      <div id="windowLabel" class="muted"></div>
+      <button id="btnNext">→</button>
     </div>
 
     <div class="row" style="margin-top:10px;">
-      <button id="btnSelectAllVisible">Chọn tất cả (đang hiện)</button>
+      <button id="btnSelectVisible">Chọn hết (đang hiện)</button>
       <button id="btnClearVisible">Bỏ chọn (đang hiện)</button>
       <button id="btnClearAll" class="btn-bad">Bỏ chọn hết</button>
       <div class="spacer"></div>
@@ -251,35 +237,55 @@
     <div id="pageGrid" class="grid"></div>
 
     <div style="margin-top:12px;">
-      <h3 style="margin:0 0 8px 0;">Files sẽ tách (Mode A)</h3>
-      <div class="muted">Mỗi file có thể sửa tên + sửa list trang dạng <code>1,2,5-8</code>.</div>
-      <div id="pickBoxes" class="splitBoxes"></div>
+      <div style="font-weight:700;margin-bottom:6px;">Danh sách file sẽ tách (Mode A)</div>
+      <div id="pickBoxes"></div>
     </div>
   </div>
 
-  <!-- MODE B -->
-  <div id="modeRange" class="card" style="margin-top:14px; display:none;">
+  <!-- Mode B -->
+  <div id="modeRange" class="card" style="display:none;">
     <div class="row">
-      <button id="btnAddRangeBox" class="btn-accent">+ Add box</button>
-      <button id="btnExampleRange">Dán ví dụ (167–1818)</button>
+      <button id="btnAddRangeBox" class="btn-accent">+ Thêm box</button>
+      <button id="btnExampleRange">Ví dụ (167–1818)</button>
       <div class="spacer"></div>
-      <div class="hint">Mỗi box: tên file + from/to.</div>
+      <div class="muted">Mỗi box: tên file + from/to.</div>
     </div>
-
-    <div style="margin-top:12px;">
-      <h3 style="margin:0 0 8px 0;">Files sẽ tách (Mode B)</h3>
-      <div id="rangeBoxes" class="splitBoxes"></div>
-    </div>
+    <div id="rangeBoxes"></div>
   </div>
 
-  <div id="downloads" class="card downloads" style="margin-top:14px; display:none;"></div>
+  <div id="downloads" class="card" style="display:none;"></div>
+
 </div>
 
-<!-- pdf.js v3 UMD => window.pdfjsLib (ổn định) -->
+<!-- Viewer Modal -->
+<div id="viewerOverlay">
+  <div id="viewerCard">
+    <div id="viewerTop">
+      <div id="viewerPageLabel" class="muted"></div>
+      <div class="spacer"></div>
+      <button id="viewerClose" class="btn-bad">Đóng</button>
+    </div>
+
+    <div id="viewerBody">
+      <canvas id="viewerCanvas"></canvas>
+    </div>
+
+    <div id="viewerBottom">
+      <button id="viewerPrev" class="btn-accent">←</button>
+      <button id="viewerNext" class="btn-accent">→</button>
+      <div class="spacer"></div>
+      <label class="muted" style="display:flex;gap:8px;align-items:center;">
+        <input id="viewerCheck" type="checkbox" class="checkbox"/> Chọn trang này
+      </label>
+      <input id="viewerJump" type="number" min="1" placeholder="Go" style="width:90px;"/>
+      <button id="viewerGo" class="btn-accent">Go</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
 <script src="app.js"></script>
 </body>
 </html>
