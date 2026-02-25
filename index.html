@@ -3,69 +3,244 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PDF Splitter (Frontend-only)</title>
+  <title>PDF Splitter Pro (Frontend-only)</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; line-height: 1.35; }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-top: 16px; }
-    input[type="file"] { padding: 8px; }
-    textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; padding: 10px; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: not-allowed; }
-    .muted { color: #666; font-size: 13px; }
-    .ok { color: #0a7; }
-    .err { color: #c00; white-space: pre-wrap; }
-    .progress { font-family: ui-monospace, monospace; }
-    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    :root{
+      --bg:#0b1020; --card:#121a33; --muted:#9aa7c7; --text:#e9eeff;
+      --line:rgba(255,255,255,.08); --accent:#7aa2ff; --good:#00d19a; --bad:#ff5c7a;
+      --shadow: 0 12px 35px rgba(0,0,0,.35);
+      --r:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; padding:22px;
+      background: radial-gradient(1200px 700px at 20% 10%, rgba(122,162,255,.20), transparent 55%),
+                  radial-gradient(900px 500px at 90% 20%, rgba(0,209,154,.16), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+    h1{margin:0 0 8px 0; font-size:20px}
+    .muted{color:var(--muted); font-size:13px}
+    .wrap{max-width:1100px; margin:0 auto}
+    .top{
+      display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .spacer{flex:1}
+    input[type=file]{
+      background: rgba(255,255,255,.05);
+      border:1px dashed var(--line);
+      color: var(--text);
+      padding:10px; border-radius:12px; min-width:280px;
+    }
+    button{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      transition:.15s transform ease, .15s opacity ease, .15s background ease;
+    }
+    button:hover{transform: translateY(-1px); background: rgba(255,255,255,.09)}
+    button:disabled{opacity:.55; cursor:not-allowed; transform:none}
+    .btn-accent{border-color:rgba(122,162,255,.45); background:rgba(122,162,255,.16)}
+    .btn-good{border-color:rgba(0,209,154,.35); background:rgba(0,209,154,.14)}
+    .btn-bad{border-color:rgba(255,92,122,.35); background:rgba(255,92,122,.14)}
+    .pill{
+      padding:6px 10px; border-radius:999px;
+      border:1px solid var(--line); background:rgba(255,255,255,.05);
+      font-size:12px; color:var(--muted);
+    }
+    .tabs{display:flex; gap:8px; flex-wrap:wrap}
+    .tab{
+      padding:8px 10px; border-radius:999px; border:1px solid var(--line);
+      background:rgba(255,255,255,.04); color:var(--muted);
+      cursor:pointer; user-select:none;
+    }
+    .tab.active{
+      color:var(--text);
+      border-color:rgba(122,162,255,.45);
+      background:rgba(122,162,255,.16);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap:10px;
+      margin-top:12px;
+    }
+    .pageCard{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 12px;
+      overflow:hidden;
+      display:flex; flex-direction:column;
+    }
+    .thumb{
+      height:150px; display:flex; align-items:center; justify-content:center;
+      background: rgba(255,255,255,.02);
+      border-bottom:1px solid var(--line);
+    }
+    .thumb canvas{max-width:100%; max-height:100%}
+    .pageMeta{
+      padding:8px 10px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .pageMeta label{display:flex; gap:8px; align-items:center; cursor:pointer}
+    .pageMeta small{color:var(--muted)}
+    .splitBoxes{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+    .box{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 12px;
+      padding:12px;
+    }
+    .boxHead{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .boxHead input{
+      background: rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      color: var(--text);
+      padding:10px 10px;
+      border-radius: 12px;
+      min-width: 220px;
+      outline:none;
+    }
+    .boxBody{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .boxBody input[type="number"], .boxBody input[type="text"]{
+      width:120px;
+      background: rgba(255,255,255,.05);
+      border:1px solid var(--line);
+      color: var(--text);
+      padding:10px 10px;
+      border-radius: 12px;
+      outline:none;
+    }
+    .hint{font-size:12px; color:var(--muted)}
+    .status{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; color:var(--muted)}
+    .error{color:var(--bad); white-space:pre-wrap; margin-top:10px}
+    .downloads a{
+      display:inline-block;
+      margin:6px 10px 0 0;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.05);
+      text-decoration:none; color:var(--text);
+    }
+    .footerActions{margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .selectActions{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .rangeActions{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
+    .pager{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
+    .pager input{
+      width:90px; background: rgba(255,255,255,.05);
+      border:1px solid var(--line); color:var(--text);
+      padding:9px 10px; border-radius: 12px; outline:none;
+    }
+    .checkbox{transform:scale(1.05)}
   </style>
 </head>
+
 <body>
-  <h1>PDF Splitter (100% chạy trên trình duyệt)</h1>
-  <div class="muted">
-    Upload PDF → nhập các đoạn cần tách → tải file kết quả. Không cần server.
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>PDF Splitter Pro</h1>
+      <div class="muted">Upload PDF → chọn trang bằng clickbox hoặc tạo box theo range (+) → tải về (PDF/ZIP). 100% chạy trên frontend.</div>
+    </div>
+    <div class="tabs">
+      <div id="tabPick" class="tab active">Mode A: Clickbox từng trang</div>
+      <div id="tabRange" class="tab">Mode B: Range boxes (+)</div>
+    </div>
   </div>
 
   <div class="card">
     <div class="row">
       <input id="pdfFile" type="file" accept="application/pdf" />
-      <button id="btnAnalyze" disabled>Đọc số trang</button>
-      <div id="pdfInfo" class="muted"></div>
-    </div>
-
-    <div style="margin-top: 12px;">
-      <div class="muted">
-        Nhập các đoạn tách theo format mỗi dòng:
-        <br/>
-        <code>TênFile|from-to</code> hoặc <code>TênFile|from-to,from-to</code>
-        <br/>
-        Ví dụ: <code>Part_A|167-250</code>
-        <br/>
-        Ví dụ gộp nhiều đoạn vào 1 file: <code>Intro|1-2,10-12</code>
-      </div>
-      <textarea id="ranges" placeholder="VD:
-Part_167_1818|167-1818
-Chap1|1-50
-Chap2|51-120
-Intro|1-2,10-12"></textarea>
-    </div>
-
-    <div class="row" style="margin-top: 12px;">
+      <button id="btnLoad" class="btn-accent" disabled>Đọc PDF</button>
+      <div id="info" class="pill">Chưa có file</div>
+      <div class="spacer"></div>
       <label class="row muted">
-        <input id="makeZip" type="checkbox" checked />
-        Tải 1 file ZIP (gồm tất cả PDF)
+        <input id="makeZip" type="checkbox" class="checkbox" checked />
+        Tải ZIP
       </label>
-      <button id="btnSplit" disabled>Tách PDF</button>
-      <button id="btnExample">Dán ví dụ</button>
-      <div id="status" class="progress muted"></div>
+      <button id="btnSplit" class="btn-good" disabled>Tách ngay</button>
     </div>
 
-    <div id="error" class="err" style="margin-top: 12px;"></div>
-    <div id="downloads" class="card" style="display:none;"></div>
+    <div id="status" class="status" style="margin-top:10px;"></div>
+    <div id="error" class="error"></div>
   </div>
 
-  <!-- Libraries from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="app.js"></script>
+  <!-- MODE A -->
+  <div id="modePick" class="card" style="margin-top:14px;">
+    <div class="row">
+      <div class="pill" id="pickCounter">Selected: 0</div>
+      <div class="spacer"></div>
+
+      <div class="pager">
+        <span class="muted">Hiển thị trang:</span>
+        <button id="btnPrev">←</button>
+        <span id="pageWindow" class="pill">-</span>
+        <button id="btnNext">→</button>
+        <span class="muted">Mỗi lần</span>
+        <input id="pageSize" type="number" min="20" max="400" value="120" />
+        <span class="muted">trang</span>
+      </div>
+    </div>
+
+    <div class="selectActions">
+      <button id="btnSelectAllVisible">Chọn tất cả (đang hiện)</button>
+      <button id="btnClearVisible">Bỏ chọn (đang hiện)</button>
+      <button id="btnClearAll" class="btn-bad">Bỏ chọn hết</button>
+      <div class="spacer"></div>
+      <button id="btnCreateBoxFromSelection" class="btn-accent" disabled>+ Tạo file từ selection</button>
+    </div>
+
+    <div id="pageGrid" class="grid"></div>
+
+    <div class="hint" style="margin-top:10px;">
+      Tip: Chọn trang → bấm “Tạo file từ selection” để tạo 1 box (card) ở dưới.
+    </div>
+
+    <div>
+      <h3 style="margin:14px 0 8px 0;">Các file sẽ tạo (Mode A)</h3>
+      <div id="pickBoxes" class="splitBoxes"></div>
+    </div>
+  </div>
+
+  <!-- MODE B -->
+  <div id="modeRange" class="card" style="margin-top:14px; display:none;">
+    <div class="rangeActions">
+      <button id="btnAddRangeBox" class="btn-accent">+ Add box</button>
+      <button id="btnExampleRange">Dán ví dụ (167–1818)</button>
+    </div>
+
+    <div>
+      <h3 style="margin:14px 0 8px 0;">Các file sẽ tạo (Mode B)</h3>
+      <div id="rangeBoxes" class="splitBoxes"></div>
+    </div>
+  </div>
+
+  <div id="downloads" class="card downloads" style="margin-top:14px; display:none;"></div>
+
+</div>
+
+<!-- pdf.js (render thumbnails) -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.js"></script>
+<!-- pdf-lib (split) -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<!-- jszip -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script src="app.js"></script>
 </body>
 </html>
