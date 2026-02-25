@@ -13,16 +13,14 @@
       --text:#1c2a44;
       --muted:#66789a;
       --accent:#7c5cff;
-      --accent2:#22c55e;
+      --good:#22c55e;
       --danger:#ff4d6d;
       --shadow: 0 18px 45px rgba(40,60,120,.12);
       --r:16px;
     }
     *{box-sizing:border-box}
     body{
-      margin:0;
-      padding:22px;
-      color:var(--text);
+      margin:0; padding:22px; color:var(--text);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
       background:
         radial-gradient(1200px 650px at 18% 8%, rgba(124,92,255,.18), transparent 55%),
@@ -44,6 +42,7 @@
     }
     .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
     .spacer{flex:1}
+
     input[type=file]{
       background:rgba(255,255,255,.75);
       border:1px dashed var(--line);
@@ -52,6 +51,15 @@
       border-radius:14px;
       min-width:280px;
     }
+    input[type="number"], input[type="text"]{
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--line);
+      color:var(--text);
+      padding:10px;
+      border-radius:14px;
+      outline:none;
+    }
+
     button{
       border:1px solid var(--line);
       background:rgba(255,255,255,.75);
@@ -67,23 +75,21 @@
     .btn-accent{border-color:rgba(124,92,255,.35); background:rgba(124,92,255,.12)}
     .btn-good{border-color:rgba(34,197,94,.30); background:rgba(34,197,94,.10)}
     .btn-bad{border-color:rgba(255,77,109,.30); background:rgba(255,77,109,.10)}
+
     .pill{
-      padding:6px 10px;
-      border-radius:999px;
+      padding:6px 10px; border-radius:999px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.70);
-      font-size:12px;
-      color:var(--muted);
+      font-size:12px; color:var(--muted);
     }
+
     .tabs{display:flex; gap:8px; flex-wrap:wrap}
     .tab{
-      padding:8px 10px;
-      border-radius:999px;
+      padding:8px 10px; border-radius:999px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.70);
       color:var(--muted);
-      cursor:pointer;
-      user-select:none;
+      cursor:pointer; user-select:none;
     }
     .tab.active{
       color:var(--text);
@@ -121,6 +127,8 @@
     }
     .pageMeta label{display:flex; gap:8px; align-items:center; cursor:pointer}
     .pageMeta small{color:var(--muted)}
+    .checkbox{transform:scale(1.05)}
+
     .splitBoxes{display:flex; flex-direction:column; gap:10px; margin-top:12px}
     .box{
       border:1px solid var(--line);
@@ -129,24 +137,8 @@
       padding:12px;
     }
     .boxHead{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .boxHead input{
-      background:rgba(255,255,255,.92);
-      border:1px solid var(--line);
-      color:var(--text);
-      padding:10px;
-      border-radius:14px;
-      min-width:240px;
-      outline:none;
-    }
+    .boxHead input{min-width:240px}
     .boxBody{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .boxBody input[type="number"], .boxBody input[type="text"]{
-      background:rgba(255,255,255,.92);
-      border:1px solid var(--line);
-      color:var(--text);
-      padding:10px;
-      border-radius:14px;
-      outline:none;
-    }
     .hint{font-size:12px; color:var(--muted)}
     .status{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; color:var(--muted)}
     .error{color:var(--danger); white-space:pre-wrap; margin-top:10px}
@@ -163,36 +155,19 @@
     }
 
     .pager{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
-    .pager input{
-      width:96px;
-      background:rgba(255,255,255,.92);
-      border:1px solid var(--line);
-      color:var(--text);
-      padding:9px 10px;
-      border-radius:14px;
-      outline:none;
-    }
-    .checkbox{transform:scale(1.05)}
+    .pager input{width:96px}
 
-    /* Cute header */
-    .brand{
-      display:flex; gap:12px; align-items:center;
-    }
+    .brand{display:flex; gap:12px; align-items:center;}
     .mascot{
       width:42px; height:42px; border-radius:14px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.8);
       box-shadow: 0 10px 25px rgba(40,60,120,.10);
-      overflow:hidden;
-      display:flex; align-items:center; justify-content:center;
-      position:relative;
+      overflow:hidden; display:flex; align-items:center; justify-content:center;
     }
-    .mascot img{
-      width:100%; height:100%; object-fit:cover;
-      display:none; /* bật nếu bạn tự thêm chiikawa.png */
-    }
+    .mascot img{width:100%; height:100%; object-fit:cover; display:none;}
     .mascot svg{width:34px; height:34px; opacity:.9}
-    .note-sticker{font-size:12px; color:var(--muted)}
+    code{background:rgba(124,92,255,.10); border:1px solid rgba(124,92,255,.14); padding:2px 6px; border-radius:10px}
   </style>
 </head>
 
@@ -201,10 +176,8 @@
   <div class="top">
     <div class="brand">
       <div class="mascot">
-        <!-- Nếu bạn muốn dùng sticker Chiikawa của bạn: đặt file assets/chiikawa.png và bỏ comment img dưới -->
+        <!-- Nếu bạn tự có sticker: đặt assets/chiikawa.png rồi bật img + tắt svg -->
         <!-- <img id="chiikawaImg" src="assets/chiikawa.png" alt="sticker"> -->
-
-        <!-- Mascot hamster chibi (original, không bản quyền) -->
         <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
           <path d="M16 26c-5 2-8 7-8 13 0 14 12 20 24 20s24-6 24-20c0-6-3-11-8-13" fill="#ffe4f1" stroke="#1c2a44" stroke-opacity=".15"/>
           <circle cx="20" cy="22" r="8" fill="#fff" stroke="#1c2a44" stroke-opacity=".15"/>
@@ -217,8 +190,8 @@
       </div>
       <div>
         <h1>PDF Splitter Pro</h1>
-        <div class="muted">Upload PDF → chọn trang bằng clickbox hoặc tạo box theo range (+) → tải về (PDF/ZIP). 100% chạy trên frontend.</div>
-        <div class="note-sticker">Muốn “Chiikawa”: bạn tự thêm sticker vào <code>assets/chiikawa.png</code> là hiện ngay.</div>
+        <div class="muted">Upload PDF → Mode A chọn trang → hỏi tên file → tạo list; Mode B tạo box from/to (+) → tách (PDF/ZIP).</div>
+        <div class="muted">Muốn “Chiikawa”: bạn tự thêm sticker vào <code>assets/chiikawa.png</code> rồi bật thẻ img.</div>
       </div>
     </div>
 
@@ -252,7 +225,7 @@
       <div class="spacer"></div>
 
       <div class="pager">
-        <span class="muted">Hiển thị trang:</span>
+        <span class="muted">Hiển thị:</span>
         <button id="btnPrev">←</button>
         <span id="pageWindow" class="pill">-</span>
         <button id="btnNext">→</button>
@@ -272,17 +245,14 @@
       <button id="btnClearVisible">Bỏ chọn (đang hiện)</button>
       <button id="btnClearAll" class="btn-bad">Bỏ chọn hết</button>
       <div class="spacer"></div>
-      <button id="btnCreateBoxFromSelection" class="btn-accent" disabled>+ Tạo file từ selection</button>
+      <button id="btnCreateFileFromSelection" class="btn-accent" disabled>+ Tạo file từ selection</button>
     </div>
 
     <div id="pageGrid" class="grid"></div>
 
-    <div class="hint" style="margin-top:10px;">
-      Tip: chọn trang → bấm “Tạo file từ selection” để tạo 1 box ở dưới (đặt tên + sửa pages).
-    </div>
-
-    <div>
-      <h3 style="margin:14px 0 8px 0;">Các file sẽ tạo (Mode A)</h3>
+    <div style="margin-top:12px;">
+      <h3 style="margin:0 0 8px 0;">Files sẽ tách (Mode A)</h3>
+      <div class="muted">Mỗi file có thể sửa tên + sửa list trang dạng <code>1,2,5-8</code>.</div>
       <div id="pickBoxes" class="splitBoxes"></div>
     </div>
   </div>
@@ -293,11 +263,11 @@
       <button id="btnAddRangeBox" class="btn-accent">+ Add box</button>
       <button id="btnExampleRange">Dán ví dụ (167–1818)</button>
       <div class="spacer"></div>
-      <div class="hint">Mỗi box: tên file + from/to. Bạn có thể tạo nhiều box.</div>
+      <div class="hint">Mỗi box: tên file + from/to.</div>
     </div>
 
-    <div>
-      <h3 style="margin:14px 0 8px 0;">Các file sẽ tạo (Mode B)</h3>
+    <div style="margin-top:12px;">
+      <h3 style="margin:0 0 8px 0;">Files sẽ tách (Mode B)</h3>
       <div id="rangeBoxes" class="splitBoxes"></div>
     </div>
   </div>
@@ -305,13 +275,9 @@
   <div id="downloads" class="card downloads" style="margin-top:14px; display:none;"></div>
 </div>
 
-<!-- ✅ pdf.js v3 UMD (ổn định với window.pdfjsLib) -->
+<!-- pdf.js v3 UMD => window.pdfjsLib (ổn định) -->
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-
-<!-- pdf-lib (split) -->
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-
-<!-- jszip -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <script src="app.js"></script>
