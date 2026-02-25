@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Splitter (Frontend-only)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; line-height: 1.35; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    input[type="file"] { padding: 8px; }
+    textarea { width: 100%; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; padding: 10px; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .muted { color: #666; font-size: 13px; }
+    .ok { color: #0a7; }
+    .err { color: #c00; white-space: pre-wrap; }
+    .progress { font-family: ui-monospace, monospace; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>PDF Splitter (100% chạy trên trình duyệt)</h1>
+  <div class="muted">
+    Upload PDF → nhập các đoạn cần tách → tải file kết quả. Không cần server.
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input id="pdfFile" type="file" accept="application/pdf" />
+      <button id="btnAnalyze" disabled>Đọc số trang</button>
+      <div id="pdfInfo" class="muted"></div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <div class="muted">
+        Nhập các đoạn tách theo format mỗi dòng:
+        <br/>
+        <code>TênFile|from-to</code> hoặc <code>TênFile|from-to,from-to</code>
+        <br/>
+        Ví dụ: <code>Part_A|167-250</code>
+        <br/>
+        Ví dụ gộp nhiều đoạn vào 1 file: <code>Intro|1-2,10-12</code>
+      </div>
+      <textarea id="ranges" placeholder="VD:
+Part_167_1818|167-1818
+Chap1|1-50
+Chap2|51-120
+Intro|1-2,10-12"></textarea>
+    </div>
+
+    <div class="row" style="margin-top: 12px;">
+      <label class="row muted">
+        <input id="makeZip" type="checkbox" checked />
+        Tải 1 file ZIP (gồm tất cả PDF)
+      </label>
+      <button id="btnSplit" disabled>Tách PDF</button>
+      <button id="btnExample">Dán ví dụ</button>
+      <div id="status" class="progress muted"></div>
+    </div>
+
+    <div id="error" class="err" style="margin-top: 12px;"></div>
+    <div id="downloads" class="card" style="display:none;"></div>
+  </div>
+
+  <!-- Libraries from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
