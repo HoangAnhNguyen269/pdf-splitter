@@ -1,11 +1,13 @@
-/* PDF Splitter Pro - FIXED
- * - Fix: pdfjsLib undefined by pinning pdf.js v3 UMD
- * - Fix: load PDF with Uint8Array
- * - Fix: tabs clickable because app won't crash on load
+/* PDF Splitter Pro (stable)
+ * - Mode A: select pages -> prompt file name -> show output list
+ * - Mode B: add boxes from/to -> show list
+ * - Split: pdf-lib
+ * - Thumbnails: pdf.js (v3 UMD) => window.pdfjsLib
  */
 
 const $ = (id) => document.getElementById(id);
 
+// Top
 const pdfFileEl = $("pdfFile");
 const btnLoad = $("btnLoad");
 const btnSplit = $("btnSplit");
@@ -15,7 +17,7 @@ const errorEl = $("error");
 const downloadsEl = $("downloads");
 const makeZipEl = $("makeZip");
 
-// Tabs & modes
+// Tabs
 const tabPick = $("tabPick");
 const tabRange = $("tabRange");
 const modePick = $("modePick");
@@ -31,7 +33,7 @@ const pageSizeEl = $("pageSize");
 const btnSelectAllVisible = $("btnSelectAllVisible");
 const btnClearVisible = $("btnClearVisible");
 const btnClearAll = $("btnClearAll");
-const btnCreateBoxFromSelection = $("btnCreateBoxFromSelection");
+const btnCreateFileFromSelection = $("btnCreateFileFromSelection");
 const pickBoxesEl = $("pickBoxes");
 const jumpToEl = $("jumpTo");
 const btnJump = $("btnJump");
@@ -41,31 +43,31 @@ const btnAddRangeBox = $("btnAddRangeBox");
 const btnExampleRange = $("btnExampleRange");
 const rangeBoxesEl = $("rangeBoxes");
 
-// Data
+// State
 let fileName = "document.pdf";
-let pdfBytes = null;          // ArrayBuffer
-let pdfU8 = null;             // Uint8Array
-let pdfLibDoc = null;
+let pdfU8 = null;          // Uint8Array
 let totalPages = 0;
+let pdfLibDoc = null;      // PDFLib.PDFDocument
+let pdfJsDoc = null;       // pdfjs document
 
-// pdf.js
-let pdfJsDoc = null;
-
-// Selection state (Mode A)
+// Mode A state
 const selectedPages = new Set(); // 1-based
 let windowStart = 1;
 let windowSize = 120;
 
-// Output boxes
-let pickBoxes = [];
-let rangeBoxes = [];
+// Output specs
+// Mode A outputs: {id, name, pagesExpr}  (pagesExpr e.g. "1,2,5-8")
+// Mode B outputs: {id, name, from, to}
+let outputsA = [];
+let outputsB = [];
 
+// ---------- helpers ----------
 function setStatus(msg){ statusEl.textContent = msg || ""; }
 function setError(msg){ errorEl.textContent = msg || ""; }
-function resetDownloads(){
-  downloadsEl.style.display = "none";
-  downloadsEl.innerHTML = "";
-}
+function resetDownloads(){ downloadsEl.style.display = "none"; downloadsEl.innerHTML = ""; }
+function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+function uniqueId(){ return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+function stripExt(name){ return name.replace(/\.[^/.]+$/, ""); }
 function sanitizeFileName(name){
   return (name || "")
     .replace(/[\/\\?%*:|"<>]/g, "_")
@@ -74,31 +76,50 @@ function sanitizeFileName(name){
     .replace(/^_+|_+$/g, "")
     .slice(0, 120);
 }
-function stripExt(name){ return name.replace(/\.[^/.]+$/, ""); }
 function bytesToObjectUrl(bytes, mime="application/pdf"){
   const blob = new Blob([bytes], { type: mime });
   return URL.createObjectURL(blob);
 }
-function uniqueId(){
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+function compressPages(pages){
+  if (!pages || pages.length === 0) return "";
+  const arr = [...new Set(pages)].sort((a,b)=>a-b);
+  const parts = [];
+  let i=0;
+  while (i < arr.length){
+    let start = arr[i], end = start;
+    while (i+1 < arr.length && arr[i+1] === end+1){ i++; end = arr[i]; }
+    parts.push(start===end ? `${start}` : `${start}-${end}`);
+    i++;
+  }
+  return parts.join(",");
 }
-function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-
-// ✅ Set worker for pdf.js v3
-if (!window.pdfjsLib) {
-  // If this ever happens, show readable error
-  console.error("pdfjsLib is not available. Check CDN script tag.");
-} else {
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+function parsePagesExpr(expr, maxPages){
+  const s = (expr || "").trim();
+  if (!s) return [];
+  const items = s.split(",").map(x=>x.trim()).filter(Boolean);
+  const pages = [];
+  for (const it of items){
+    const m = it.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m){
+      const a = Number(m[1]), b = Number(m[2]);
+      if (a<1 || b<1 || a>b) throw new Error(`Sai đoạn: "${it}"`);
+      if (b>maxPages) throw new Error(`Đoạn "${it}" vượt quá ${maxPages} trang`);
+      for (let p=a; p<=b; p++) pages.push(p);
+    } else {
+      const n = Number(it);
+      if (!Number.isInteger(n)) throw new Error(`Sai trang: "${it}"`);
+      if (n<1 || n>maxPages) throw new Error(`Trang "${it}" vượt 1..${maxPages}`);
+      pages.push(n);
+    }
+  }
+  return [...new Set(pages)].sort((a,b)=>a-b);
 }
 
-// Tabs
-tabPick.addEventListener("click", () => switchMode("pick"));
-tabRange.addEventListener("click", () => switchMode("range"));
-
+// ---------- tabs ----------
+tabPick.addEventListener("click", () => switchMode("A"));
+tabRange.addEventListener("click", () => switchMode("B"));
 function switchMode(mode){
-  if (mode === "pick"){
+  if (mode === "A"){
     tabPick.classList.add("active");
     tabRange.classList.remove("active");
     modePick.style.display = "";
@@ -111,10 +132,14 @@ function switchMode(mode){
   }
 }
 
+// ---------- pdf load ----------
+if (window.pdfjsLib){
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+}
+
 pdfFileEl.addEventListener("change", async () => {
-  setError("");
-  setStatus("");
-  resetDownloads();
+  setError(""); setStatus(""); resetDownloads();
 
   const f = pdfFileEl.files?.[0];
   if (!f){
@@ -125,44 +150,41 @@ pdfFileEl.addEventListener("change", async () => {
   }
 
   fileName = f.name || "document.pdf";
-  pdfBytes = await f.arrayBuffer();
-  pdfU8 = new Uint8Array(pdfBytes);
+  const ab = await f.arrayBuffer();
+  pdfU8 = new Uint8Array(ab);
 
   // reset state
+  totalPages = 0;
   pdfLibDoc = null;
   pdfJsDoc = null;
-  totalPages = 0;
+
   selectedPages.clear();
-  pickBoxes = [];
-  rangeBoxes = [];
+  windowStart = 1;
+
+  outputsA = [];
+  outputsB = [];
+
+  pageGrid.innerHTML = "";
   pickBoxesEl.innerHTML = "";
   rangeBoxesEl.innerHTML = "";
-  pageGrid.innerHTML = "";
-  windowStart = 1;
+
+  updateSelectedUI();
+  renderOutputsA();
+  renderOutputsB();
 
   infoEl.textContent = `Đã chọn: ${fileName}`;
   btnLoad.disabled = false;
   btnSplit.disabled = true;
-  updatePickCounter();
-  btnCreateBoxFromSelection.disabled = true;
-
-  renderPickBoxes();
-  renderRangeBoxes();
 });
 
 btnLoad.addEventListener("click", async () => {
-  setError("");
-  setStatus("Đang đọc PDF...");
-  resetDownloads();
-
+  setError(""); setStatus("Đang đọc PDF..."); resetDownloads();
   try{
     if (!pdfU8) throw new Error("Chưa chọn PDF.");
 
-    // Load pdf-lib
     pdfLibDoc = await PDFLib.PDFDocument.load(pdfU8);
     totalPages = pdfLibDoc.getPageCount();
 
-    // Load pdf.js
     if (!window.pdfjsLib) throw new Error("PDF.js không load được (pdfjsLib undefined).");
     pdfJsDoc = await window.pdfjsLib.getDocument({ data: pdfU8 }).promise;
 
@@ -180,7 +202,7 @@ btnLoad.addEventListener("click", async () => {
   }
 });
 
-// Pagination / window
+// ---------- Mode A paging ----------
 btnPrev.addEventListener("click", async () => {
   if (!totalPages) return;
   windowStart = Math.max(1, windowStart - windowSize);
@@ -192,17 +214,16 @@ btnNext.addEventListener("click", async () => {
   await renderWindow();
 });
 pageSizeEl.addEventListener("change", async () => {
+  if (!totalPages) return;
   windowSize = clamp(Number(pageSizeEl.value || 120), 20, 400);
   pageSizeEl.value = String(windowSize);
-  windowStart = Math.max(1, Math.min(windowStart, totalPages));
+  windowStart = clamp(windowStart, 1, totalPages);
   await renderWindow();
 });
-
-// Jump
 btnJump.addEventListener("click", async () => {
   if (!totalPages) return;
   const p = Number(jumpToEl.value || 1);
-  if (!Number.isFinite(p) || p < 1 || p > totalPages) {
+  if (!Number.isFinite(p) || p<1 || p>totalPages){
     setError(`Jump sai. Nhập 1..${totalPages}`);
     return;
   }
@@ -213,42 +234,39 @@ btnJump.addEventListener("click", async () => {
 
 btnSelectAllVisible.addEventListener("click", () => {
   const end = Math.min(totalPages, windowStart + windowSize - 1);
-  for (let p = windowStart; p <= end; p++) selectedPages.add(p);
+  for (let p=windowStart; p<=end; p++) selectedPages.add(p);
   syncVisibleCheckboxes();
-  updatePickCounter();
+  updateSelectedUI();
 });
 btnClearVisible.addEventListener("click", () => {
   const end = Math.min(totalPages, windowStart + windowSize - 1);
-  for (let p = windowStart; p <= end; p++) selectedPages.delete(p);
+  for (let p=windowStart; p<=end; p++) selectedPages.delete(p);
   syncVisibleCheckboxes();
-  updatePickCounter();
+  updateSelectedUI();
 });
 btnClearAll.addEventListener("click", () => {
   selectedPages.clear();
   syncVisibleCheckboxes();
-  updatePickCounter();
+  updateSelectedUI();
 });
 
-function updatePickCounter(){
+function updateSelectedUI(){
   pickCounter.textContent = `Selected: ${selectedPages.size}`;
-  btnCreateBoxFromSelection.disabled = (selectedPages.size === 0);
+  btnCreateFileFromSelection.disabled = selectedPages.size === 0;
 }
 
-// Render visible page window (Mode A)
 async function renderWindow(){
   if (!pdfJsDoc || !totalPages){
     pageGrid.innerHTML = "";
     pageWindowEl.textContent = "-";
     return;
   }
-
   const end = Math.min(totalPages, windowStart + windowSize - 1);
   pageWindowEl.textContent = `${windowStart}–${end}`;
-
   pageGrid.innerHTML = "";
   setStatus(`Đang render ${windowStart}–${end}...`);
 
-  for (let p = windowStart; p <= end; p++){
+  for (let p=windowStart; p<=end; p++){
     const card = document.createElement("div");
     card.className = "pageCard";
 
@@ -265,11 +283,10 @@ async function renderWindow(){
     cb.type = "checkbox";
     cb.className = "checkbox";
     cb.checked = selectedPages.has(p);
-
     cb.addEventListener("change", () => {
       if (cb.checked) selectedPages.add(p);
       else selectedPages.delete(p);
-      updatePickCounter();
+      updateSelectedUI();
     });
 
     const txt = document.createElement("small");
@@ -288,12 +305,9 @@ async function renderWindow(){
     card.appendChild(meta);
     pageGrid.appendChild(card);
 
-    // thumbnail render (safe)
-    renderThumbnail(p, canvas).catch(() => { /* ignore */ });
-
-    if ((p - windowStart) % 12 === 0) await new Promise(r => setTimeout(r, 0));
+    renderThumbnail(p, canvas).catch(()=>{});
+    if ((p - windowStart) % 12 === 0) await new Promise(r=>setTimeout(r,0));
   }
-
   setStatus("Sẵn sàng.");
 }
 
@@ -319,137 +333,140 @@ function syncVisibleCheckboxes(){
   }
 }
 
-// Create box from selection (Mode A)
-btnCreateBoxFromSelection.addEventListener("click", () => {
+// ---------- Mode A: create file from selection ----------
+btnCreateFileFromSelection.addEventListener("click", () => {
   if (selectedPages.size === 0) return;
 
-  const id = uniqueId();
-  const pages = new Set([...selectedPages].sort((a,b)=>a-b));
-  const minP = Math.min(...pages);
-  const maxP = Math.max(...pages);
+  const pages = [...selectedPages].sort((a,b)=>a-b);
+  const defaultName = `Part_${pages[0]}_${pages[pages.length-1]}`;
+  const name = sanitizeFileName(window.prompt("Tên file (không cần .pdf):", defaultName) || "");
+  if (!name) return;
 
-  pickBoxes.push({ id, name: `Part_${minP}_${maxP}`, pages });
+  outputsA.push({
+    id: uniqueId(),
+    name,
+    pagesExpr: compressPages(pages),
+  });
+
   selectedPages.clear();
   syncVisibleCheckboxes();
-  updatePickCounter();
-
-  renderPickBoxes();
+  updateSelectedUI();
+  renderOutputsA();
 });
 
-function renderPickBoxes(){
+function renderOutputsA(){
   pickBoxesEl.innerHTML = "";
-  if (pickBoxes.length === 0){
-    pickBoxesEl.innerHTML = `<div class="muted">Chưa có box nào. Chọn trang → “Tạo file từ selection”.</div>`;
+  if (outputsA.length === 0){
+    pickBoxesEl.innerHTML = `<div class="muted">Chưa có file nào. Chọn trang → “+ Tạo file từ selection”.</div>`;
     return;
   }
 
-  for (const box of pickBoxes){
-    const el = document.createElement("div");
-    el.className = "box";
+  for (const item of outputsA){
+    const box = document.createElement("div");
+    box.className = "box";
 
     const head = document.createElement("div");
     head.className = "boxHead";
 
     const nameInput = document.createElement("input");
-    nameInput.value = box.name;
+    nameInput.type = "text";
+    nameInput.value = item.name;
     nameInput.placeholder = "Tên file";
-    nameInput.addEventListener("input", () => box.name = sanitizeFileName(nameInput.value));
+    nameInput.addEventListener("input", () => item.name = sanitizeFileName(nameInput.value));
 
     const pill = document.createElement("div");
     pill.className = "pill";
-    pill.textContent = `${box.pages.size} trang`;
+    pill.textContent = `pages: ${item.pagesExpr}`;
 
-    const btnRemove = document.createElement("button");
-    btnRemove.className = "btn-bad";
-    btnRemove.textContent = "Xóa box";
-    btnRemove.addEventListener("click", () => {
-      pickBoxes = pickBoxes.filter(b => b.id !== box.id);
-      renderPickBoxes();
+    const del = document.createElement("button");
+    del.className = "btn-bad";
+    del.textContent = "Xóa";
+    del.addEventListener("click", () => {
+      outputsA = outputsA.filter(x => x.id !== item.id);
+      renderOutputsA();
     });
 
     head.appendChild(nameInput);
     head.appendChild(pill);
-    head.appendChild(btnRemove);
+    head.appendChild(del);
 
     const body = document.createElement("div");
     body.className = "boxBody";
 
-    const pagesText = document.createElement("input");
-    pagesText.type = "text";
-    pagesText.style.width = "520px";
-    pagesText.value = compressPages([...box.pages]);
-    pagesText.title = "Sửa dạng: 1,2,5-8";
-    pagesText.addEventListener("change", () => {
-      const parsed = parsePagesExpression(pagesText.value, totalPages);
-      box.pages = new Set(parsed);
-      pill.textContent = `${box.pages.size} trang`;
-      pagesText.value = compressPages([...box.pages]);
+    const pagesInput = document.createElement("input");
+    pagesInput.type = "text";
+    pagesInput.style.width = "520px";
+    pagesInput.value = item.pagesExpr;
+    pagesInput.addEventListener("change", () => {
+      // validate now
+      const pages = parsePagesExpr(pagesInput.value, totalPages || 999999);
+      item.pagesExpr = compressPages(pages);
+      pagesInput.value = item.pagesExpr;
+      pill.textContent = `pages: ${item.pagesExpr}`;
     });
 
     const hint = document.createElement("div");
     hint.className = "hint";
-    hint.textContent = `Trang: sửa được dạng 1,2,5-8`;
+    hint.textContent = `Sửa pages dạng 1,2,5-8`;
 
-    body.appendChild(pagesText);
+    body.appendChild(pagesInput);
     body.appendChild(hint);
 
-    el.appendChild(head);
-    el.appendChild(body);
-    pickBoxesEl.appendChild(el);
+    box.appendChild(head);
+    box.appendChild(body);
+    pickBoxesEl.appendChild(box);
   }
 }
 
-// Mode B: range boxes
-btnAddRangeBox.addEventListener("click", () => addRangeBox());
-btnExampleRange.addEventListener("click", () => {
-  rangeBoxes = [];
-  rangeBoxesEl.innerHTML = "";
-  addRangeBox({ name: "Part_167_1818", from: 167, to: 1818 });
-  addRangeBox({ name: "P1_167_400", from: 167, to: 400 });
-  addRangeBox({ name: "P2_401_900", from: 401, to: 900 });
-  addRangeBox({ name: "P3_901_1818", from: 901, to: 1818 });
+// ---------- Mode B ----------
+btnAddRangeBox.addEventListener("click", () => {
+  outputsB.push({ id: uniqueId(), name: `Part_${outputsB.length+1}`, from: 1, to: 1 });
+  renderOutputsB();
 });
 
-function addRangeBox(init={}){
-  const id = uniqueId();
-  rangeBoxes.push({
-    id,
-    name: sanitizeFileName(init.name || `Part_${rangeBoxes.length+1}`) || `Part_${rangeBoxes.length+1}`,
-    from: Number(init.from || 1),
-    to: Number(init.to || 1),
-  });
-  renderRangeBoxes();
-}
+btnExampleRange.addEventListener("click", () => {
+  if (!totalPages){
+    setError("Hãy bấm “Đọc PDF” trước để biết số trang.");
+    return;
+  }
+  setError("");
 
-function renderRangeBoxes(){
+  const from = 167;
+  const to = Math.min(1818, totalPages); // ✅ clamp theo số trang thật
+  outputsB.push({ id: uniqueId(), name: `Part_${from}_${to}`, from, to });
+  renderOutputsB();
+});
+
+function renderOutputsB(){
   rangeBoxesEl.innerHTML = "";
-  if (rangeBoxes.length === 0){
+  if (outputsB.length === 0){
     rangeBoxesEl.innerHTML = `<div class="muted">Bấm “+ Add box” để tạo from/to.</div>`;
     return;
   }
 
-  for (const box of rangeBoxes){
-    const el = document.createElement("div");
-    el.className = "box";
+  for (const item of outputsB){
+    const box = document.createElement("div");
+    box.className = "box";
 
     const head = document.createElement("div");
     head.className = "boxHead";
 
     const nameInput = document.createElement("input");
-    nameInput.value = box.name;
+    nameInput.type = "text";
+    nameInput.value = item.name;
     nameInput.placeholder = "Tên file";
-    nameInput.addEventListener("input", () => box.name = sanitizeFileName(nameInput.value));
+    nameInput.addEventListener("input", () => item.name = sanitizeFileName(nameInput.value));
 
-    const btnRemove = document.createElement("button");
-    btnRemove.className = "btn-bad";
-    btnRemove.textContent = "Xóa box";
-    btnRemove.addEventListener("click", () => {
-      rangeBoxes = rangeBoxes.filter(b => b.id !== box.id);
-      renderRangeBoxes();
+    const del = document.createElement("button");
+    del.className = "btn-bad";
+    del.textContent = "Xóa";
+    del.addEventListener("click", () => {
+      outputsB = outputsB.filter(x => x.id !== item.id);
+      renderOutputsB();
     });
 
     head.appendChild(nameInput);
-    head.appendChild(btnRemove);
+    head.appendChild(del);
 
     const body = document.createElement("div");
     body.className = "boxBody";
@@ -457,43 +474,31 @@ function renderRangeBoxes(){
     const fromInput = document.createElement("input");
     fromInput.type = "number";
     fromInput.min = "1";
-    fromInput.value = String(box.from);
-    fromInput.addEventListener("input", () => box.from = Number(fromInput.value || 1));
+    fromInput.value = String(item.from);
+    fromInput.addEventListener("input", () => item.from = Number(fromInput.value || 1));
 
     const toInput = document.createElement("input");
     toInput.type = "number";
     toInput.min = "1";
-    toInput.value = String(box.to);
-    toInput.addEventListener("input", () => box.to = Number(toInput.value || 1));
-
-    body.appendChild(labelText("From"));
-    body.appendChild(fromInput);
-    body.appendChild(labelText("To"));
-    body.appendChild(toInput);
+    toInput.value = String(item.to);
+    toInput.addEventListener("input", () => item.to = Number(toInput.value || 1));
 
     const hint = document.createElement("div");
     hint.className = "hint";
-    hint.textContent = `1-based, inclusive.`;
+    hint.textContent = "1-based, inclusive";
 
-    body.appendChild(hint);
+    body.append("From", fromInput, "To", toInput, hint);
 
-    el.appendChild(head);
-    el.appendChild(body);
-    rangeBoxesEl.appendChild(el);
+    box.appendChild(head);
+    box.appendChild(body);
+
+    rangeBoxesEl.appendChild(box);
   }
 }
-function labelText(t){
-  const s = document.createElement("span");
-  s.className = "muted";
-  s.textContent = t;
-  return s;
-}
 
-// Split
+// ---------- split ----------
 btnSplit.addEventListener("click", async () => {
-  setError("");
-  setStatus("");
-  resetDownloads();
+  setError(""); resetDownloads();
 
   try{
     if (!pdfU8) throw new Error("Chưa chọn PDF.");
@@ -503,30 +508,31 @@ btnSplit.addEventListener("click", async () => {
       totalPages = pdfLibDoc.getPageCount();
     }
 
+    // Build specs from A + B
     const specs = [];
 
-    for (const b of pickBoxes){
-      const name = sanitizeFileName(b.name) || "output";
-      const pages = [...b.pages].sort((a,b)=>a-b);
+    // A
+    for (const a of outputsA){
+      const name = sanitizeFileName(a.name) || "output";
+      const pages = parsePagesExpr(a.pagesExpr, totalPages);
       if (pages.length === 0) continue;
-      validatePages(pages, totalPages);
       specs.push({ name, pages });
     }
 
-    for (const b of rangeBoxes){
+    // B
+    for (const b of outputsB){
       const name = sanitizeFileName(b.name) || "output";
       const from = Number(b.from), to = Number(b.to);
-      if (from < 1 || to < 1) throw new Error(`Range invalid ở "${name}" (trang phải >= 1).`);
-      if (from > to) throw new Error(`Range invalid ở "${name}" (from > to).`);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) throw new Error(`Range sai ở "${name}".`);
+      if (from < 1 || to < 1) throw new Error(`Range sai ở "${name}": trang phải >= 1.`);
+      if (from > to) throw new Error(`Range sai ở "${name}": from > to.`);
       if (to > totalPages) throw new Error(`Range vượt quá số trang (${totalPages}) ở "${name}".`);
       const pages = [];
       for (let p=from; p<=to; p++) pages.push(p);
       specs.push({ name, pages });
     }
 
-    if (specs.length === 0){
-      throw new Error("Chưa có box nào để tách. (Mode A: tạo box từ selection; Mode B: add box range)");
-    }
+    if (specs.length === 0) throw new Error("Chưa có file nào để tách (Mode A hoặc Mode B).");
 
     btnSplit.disabled = true;
     btnLoad.disabled = true;
@@ -535,9 +541,9 @@ btnSplit.addEventListener("click", async () => {
     for (let i=0; i<specs.length; i++){
       const s = specs[i];
       setStatus(`(${i+1}/${specs.length}) Tạo: ${s.name}.pdf`);
-      const bytes = await buildPdfFromPageList(pdfLibDoc, s.pages);
+      const bytes = await buildPdfFromPages(pdfLibDoc, s.pages);
       outputs.push({ file: `${s.name}.pdf`, bytes });
-      await new Promise(r => setTimeout(r, 0));
+      await new Promise(r=>setTimeout(r,0));
     }
 
     setStatus("Hoàn tất.");
@@ -552,24 +558,17 @@ btnSplit.addEventListener("click", async () => {
   }
 });
 
-async function buildPdfFromPageList(srcDoc, pages1Based){
+async function buildPdfFromPages(srcDoc, pages1Based){
   const out = await PDFLib.PDFDocument.create();
   const indices = [...new Set(pages1Based)].sort((a,b)=>a-b).map(p => p-1);
   const copied = await out.copyPages(srcDoc, indices);
   copied.forEach(pg => out.addPage(pg));
   return await out.save();
 }
-function validatePages(pages, max){
-  for (const p of pages){
-    if (!Number.isInteger(p)) throw new Error(`Trang không hợp lệ: ${p}`);
-    if (p < 1 || p > max) throw new Error(`Trang ${p} vượt phạm vi 1..${max}`);
-  }
-}
 
-// Downloads + ZIP
 async function renderDownloads(outputs){
   downloadsEl.style.display = "block";
-  downloadsEl.innerHTML = `<h3 style="margin:0 0 6px 0;">Kết quả</h3><div class="muted">Tải từng file hoặc tải ZIP.</div>`;
+  downloadsEl.innerHTML = `<h3 style="margin:0 0 6px 0;">Kết quả</h3><div class="muted">Tải từng file hoặc ZIP.</div>`;
 
   for (const o of outputs){
     const a = document.createElement("a");
@@ -598,52 +597,8 @@ async function renderDownloads(outputs){
   }
 }
 
-// Helpers: compress pages to expression "1,2,5-8"
-function compressPages(pages){
-  if (!pages || pages.length === 0) return "";
-  const arr = [...new Set(pages)].sort((a,b)=>a-b);
-  const parts = [];
-  let i=0;
-  while (i < arr.length){
-    let start = arr[i], end = start;
-    while (i+1 < arr.length && arr[i+1] === end + 1){ i++; end = arr[i]; }
-    parts.push(start === end ? `${start}` : `${start}-${end}`);
-    i++;
-  }
-  return parts.join(",");
-}
-function parsePagesExpression(expr, maxPages){
-  const s = (expr || "").trim();
-  if (!s) return [];
-  const items = s.split(",").map(x => x.trim()).filter(Boolean);
-  const pages = [];
-  for (const it of items){
-    const m = it.match(/^(\d+)\s*-\s*(\d+)$/);
-    if (m){
-      const a = Number(m[1]), b = Number(m[2]);
-      if (a < 1 || b < 1 || a > b) throw new Error(`Sai đoạn: "${it}"`);
-      if (b > maxPages) throw new Error(`Đoạn "${it}" vượt quá ${maxPages} trang`);
-      for (let p=a; p<=b; p++) pages.push(p);
-    } else {
-      const n = Number(it);
-      if (!Number.isInteger(n)) throw new Error(`Sai trang: "${it}"`);
-      if (n < 1 || n > maxPages) throw new Error(`Trang "${it}" vượt 1..${maxPages}`);
-      pages.push(n);
-    }
-  }
-  return [...new Set(pages)].sort((a,b)=>a-b);
-}
-
-// Initial empty
-renderPickBoxes();
-renderRangeBoxes();
-function renderPickBoxes(){
-  pickBoxesEl.innerHTML = `<div class="muted">Chưa có box nào. Chọn trang → “Tạo file từ selection”.</div>`;
-}
-function renderRangeBoxes(){
-  rangeBoxesEl.innerHTML = `<div class="muted">Bấm “+ Add box” để tạo from/to.</div>`;
-}
-function updatePickCounter(){
-  pickCounter.textContent = `Selected: ${selectedPages.size}`;
-  btnCreateBoxFromSelection.disabled = (selectedPages.size === 0);
-}
+// ---------- init empty ----------
+renderOutputsA();
+renderOutputsB();
+updateSelectedUI();
+switchMode("A");
